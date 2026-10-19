@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thiệp Mời Lớp Toán Anh Bảo</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            red: '#D41433',     // Crimson
+                            darkred: '#990011',
+                            gold: '#D4AF37',
+                            goldlight: '#FFF099'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                        heading: ['Montserrat', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Mathematical Grid Background */
+        .math-grid-bg {
+            background-color: #faf9f9;
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(212, 20, 51, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(212, 20, 51, 0.05) 1px, transparent 1px);
+        }
+
+        /* Envelope Flap 3D Effect */
+        .envelope-perspective {
+            perspective: 1200px;
+        }
+
+        .envelope-flap {
+            transform-origin: top center;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .envelope-open .envelope-flap {
+            transform: rotateX(180deg);
+        }
+
+        /* Wax Seal Pulse Animation */
+        @keyframes sealPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(212, 175, 55, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.3); }
+            50% { box-shadow: 0 0 35px rgba(212, 175, 55, 0.9), inset 0 0 20px rgba(255, 255, 255, 0.6); }
+        }
+
+        .wax-seal {
+            animation: sealPulse 2.5s infinite ease-in-out;
+            background: radial-gradient(circle at 30% 30%, #ffe066, #D4AF37 60%, #997a00);
+        }
+
+        /* Floating Math Particles on Click */
+        .tap-particle {
+            position: fixed;
+            pointer-events: none;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            color: #D41433;
+            z-index: 9999;
+            text-shadow: 0px 2px 10px rgba(212, 20, 51, 0.4);
+            animation: tapParticleAnim 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+        }
+
+        @keyframes tapParticleAnim {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5) translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) translateY(-80px) rotate(15deg); }
+        }
+
+        /* Ripple Effect */
+        .ripple {
+            position: fixed;
+            border-radius: 50%;
+            border: 2px solid rgba(212, 20, 51, 0.4);
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            animation: rippleAnim 0.8s ease-out forwards;
+        }
+
+        @keyframes rippleAnim {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 100px; height: 100px; opacity: 0; }
+        }
+
+        /* Letter styling */
+        .letter-card {
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 10px 10px -5px rgba(0, 0, 0, 0.04),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body class="text-slate-800 font-body min-h-screen relative overflow-x-hidden math-grid-bg select-none">
+
+    <!-- Toast Notification (Replacing alert) -->
+    <div id="toastMessage" class="fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl z-[10000] opacity-0 pointer-events-none transition-opacity duration-300 font-sans font-semibold text-sm text-center min-w-[250px]">
+    </div>
+
+    <!-- 1. ENVELOPE OVERLAY -->
+    <div id="envelopeOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4 transition-all duration-700 ease-in-out cursor-pointer" onclick="openEnvelope()">
+        <div id="envelopeWrapper" class="envelope-perspective relative w-full max-w-lg aspect-[4/3] rounded-2xl shadow-2xl flex flex-col items-center justify-center group transition-transform duration-300 hover:scale-[1.02]">
+            
+            <!-- Envelope Body Base -->
+            <div class="absolute inset-0 bg-gradient-to-br from-brand-red to-brand-darkred rounded-2xl overflow-hidden border border-brand-gold/30">
+                <svg class="absolute inset-0 w-full h-full opacity-10 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="0" y1="0" x2="100%" y2="100%" stroke="#FFF099" stroke-width="1.5" stroke-dasharray="8 6"/>
+                    <line x1="100%" y1="0" x2="0" y2="100%" stroke="#FFF099" stroke-width="1.5" stroke-dasharray="8 6"/>
+                </svg>
+            </div>
+
+            <!-- Envelope Flap (Top) -->
+            <div id="envelopeFlap" class="envelope-flap absolute top-0 left-0 w-full h-[60%] z-20 drop-shadow-2xl">
+                <svg viewBox="0 0 100 60" preserveAspectRatio="none" class="w-full h-full">
+                    <path d="M0,0 L100,0 L50,60 Z" fill="#E61A3F" stroke="#B3001B" stroke-width="0.5"/>
+                </svg>
+                
+                <!-- Wax Seal -->
+                <div class="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-1/2 wax-seal w-20 h-20 rounded-full flex items-center justify-center border-2 border-yellow-200/50 shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-30 transition-transform group-hover:scale-110 active:scale-95">
+                    <div class="w-14 h-14 rounded-full border border-yellow-900/20 flex items-center justify-center bg-brand-gold/20">
+                        <span class="text-2xl font-bold text-amber-950 font-serif drop-shadow-sm">&radic;x</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom helper text -->
+            <div class="absolute -bottom-12 left-0 w-full text-center z-10 pointer-events-none">
+                <p class="text-white/90 text-sm font-medium tracking-wide flex items-center justify-center gap-2 mx-auto w-max px-4 py-1.5 rounded-full animate-pulse">
+                    <i data-lucide="hand" class="w-4 h-4 text-brand-goldlight"></i> Chạm vào phong bì để mở
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MAIN INVITATION CONTENT -->
+    <main id="mainContent" class="relative z-10 flex flex-col items-center justify-center p-4 sm:p-6 min-h-screen opacity-0 translate-y-10 transition-all duration-1000 ease-out hidden">
+        
+        <div class="letter-card w-full max-w-2xl bg-[#fefdfc] rounded-xl overflow-hidden mt-8 mb-12 relative border border-slate-200/60">
+            <!-- Decorative shadow overlay for physical paper look -->
+            <div class="absolute -inset-1 bg-gradient-to-r from-[#f5f1eb] to-transparent opacity-30 blur-lg pointer-events-none"></div>
+
+            <!-- Header Section -->
+            <div class="bg-gradient-to-b from-rose-50/60 to-transparent pt-16 pb-12 px-6 text-center relative">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-brand-red"></div>
+                
+                <h2 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand-red mb-5">Hội Ngộ Tập Thể Lớp</h2>
+                <h1 class="text-4xl sm:text-5xl font-heading font-extrabold text-slate-900 tracking-tight leading-tight mb-8">
+                    GẶP MẶT LỚP<br/><span class="text-brand-red">TOÁN ANH BẢO</span>
+                </h1>
+                
+                <p class="text-slate-600 font-medium max-w-md mx-auto text-sm sm:text-base leading-relaxed mb-10">
+                    Trân trọng kính mời quý thầy cô và các bạn học sinh tới tham dự buổi họp mặt ấm cúng, tri ân Thầy và cùng nhau ôn lại những kỷ niệm rực rỡ nhất!
+                </p>
+
+                <!-- Beautiful Math Badges -->
+                <div class="flex flex-wrap items-center justify-center gap-4">
+                    <div class="flex items-center gap-2 bg-white px-5 py-2.5 rounded-full border border-slate-200/80 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <span class="text-brand-red font-serif text-2xl leading-none">&int;</span>
+                        <span class="text-slate-700 font-bold text-sm tracking-wide">Kỷ niệm = &infin;</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-white px-5 py-2.5 rounded-full border border-slate-200/80 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <span class="text-brand-red font-serif text-xl leading-none font-bold">&Sigma;</span>
+                        <span class="text-slate-700 font-bold text-sm tracking-wide">Bạn bè = Niềm vui</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Details -->
+            <div class="px-8 sm:px-12 pb-12 space-y-8 relative">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
+                    <!-- Time -->
+                    <div class="bg-white rounded-2xl p-6 border border-rose-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] flex flex-col items-center text-center transition-all hover:border-brand-red/30">
+                        <div class="bg-rose-50 text-brand-red p-3 rounded-full mb-4">
+                            <i data-lucide="clock" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest mb-1.5">Thời Gian</p>
+                        <p class="font-heading font-extrabold text-slate-900 text-3xl mb-1">17h00</p>
+                        <p class="text-sm font-semibold text-brand-red">25/10/2026</p>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="bg-white rounded-2xl p-6 border border-rose-100 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.08)] flex flex-col items-center text-center transition-all hover:border-brand-red/30">
+                        <div class="bg-rose-50 text-brand-red p-3 rounded-full mb-4">
+                            <i data-lucide="map-pin" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest mb-1.5">Địa Điểm</p>
+                        <p class="font-heading font-extrabold text-slate-900 text-lg leading-tight mb-1">Nhà hàng<br/>Ngọc Lặc Event</p>
+                        <p class="text-xs font-medium text-slate-500">Ngọc Lặc, Thanh Hóa</p>
+                    </div>
+                </div>
+
+                <!-- Google Maps Button -->
+                <div class="text-center pt-2 relative z-10">
+                    <a href="https://www.google.com/maps/place/Nh%C3%A0+H%C3%A0ng+Ng%E1%BB%8Dc+L%E1%BA%B7c/@20.0919115,105.3719699,788m/data=!3m2!1e3!4b1!4m6!3m5!1s0x3136f960b71070db:0x139d7cd02525b3d1!8m2!3d20.0919065!4d105.3745502!16s%2Fg%2F11m6yg25hc" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2.5 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-sm px-8 py-4 rounded-full shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 w-full sm:w-auto ring-4 ring-slate-900/10 hover:ring-slate-900/20">
+                        <i data-lucide="navigation" class="w-4 h-4"></i>
+                        Mở Bản Đồ Chỉ Đường
+                    </a>
+                </div>
+            </div>
+
+            <!-- RSVP Form Section -->
+            <div class="bg-[#f8f6f3] p-6 sm:p-10 border-t border-slate-200/60 shadow-inner relative overflow-hidden">
+                <!-- Background decorative math symbol -->
+                <div class="absolute -right-10 -bottom-10 text-[200px] text-slate-200/50 font-serif font-bold pointer-events-none select-none z-0 rotate-12">&pi;</div>
+
+                <div class="text-center mb-8 relative z-10">
+                    <h3 class="font-heading font-extrabold text-2xl text-slate-900">Xác Nhận Tham Dự</h3>
+                    <p class="text-slate-500 text-sm mt-2 font-medium">Vui lòng phản hồi để ban tổ chức chuẩn bị chu đáo nhất</p>
+                </div>
+
+                <form id="rsvpForm" onsubmit="submitRSVP(event)" class="max-w-md mx-auto space-y-5 relative z-20">
+                    <!-- Name -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Họ và Tên <span class="text-brand-red">*</span></label>
+                        <input type="text" id="guestName" required placeholder="Nhập tên của bạn" class="w-full px-4 py-3.5 rounded-xl border border-slate-300/80 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-sm font-semibold bg-white transition-all shadow-sm" />
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Khả năng tham dự <span class="text-brand-red">*</span></label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center justify-center gap-2 p-3.5 rounded-xl border border-slate-300/80 cursor-pointer hover:bg-rose-50 transition-all [&:has(input:checked)]:border-brand-red [&:has(input:checked)]:bg-rose-50 [&:has(input:checked)]:text-brand-red bg-white shadow-sm">
+                                <input type="radio" name="attendance" value="Tham gia" checked class="accent-brand-red w-4 h-4">
+                                <span class="text-sm font-bold">Sẽ tham gia</span>
+                            </label>
+                            <label class="flex items-center justify-center gap-2 p-3.5 rounded-xl border border-slate-300/80 cursor-pointer hover:bg-slate-50 transition-all [&:has(input:checked)]:border-slate-500 [&:has(input:checked)]:bg-slate-100 [&:has(input:checked)]:text-slate-800 text-slate-500 bg-white shadow-sm">
+                                <input type="radio" name="attendance" value="Vắng mặt" class="accent-slate-500 w-4 h-4">
+                                <span class="text-sm font-bold">Vắng mặt</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Guests -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Số người đi cùng</label>
+                        <select id="guestCount" class="w-full px-4 py-3.5 rounded-xl border border-slate-300/80 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-sm font-semibold bg-white transition-all shadow-sm">
+                            <option value="0">Đi 1 mình</option>
+                            <option value="1">+1 Người</option>
+                            <option value="2">+2 Người</option>
+                            <option value="3">+3 Người</option>
+                        </select>
+                    </div>
+
+                    <!-- Note -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Lời nhắn</label>
+                        <textarea id="guestNote" rows="3" placeholder="Gửi lời chúc hoặc lưu ý thêm..." class="w-full px-4 py-3.5 rounded-xl border border-slate-300/80 focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 text-sm font-semibold bg-white transition-all shadow-sm"></textarea>
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" id="submitBtn" class="w-full bg-brand-red hover:bg-brand-darkred text-white font-sans font-bold py-4 rounded-xl shadow-[0_8px_20px_-6px_rgba(212,20,51,0.5)] transition-all transform hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] flex items-center justify-center gap-2 mt-2">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                        <span>Gửi Phản Hồi</span>
+                    </button>
+                </form>
+
+                <!-- Success Message -->
+                <div id="successMsg" class="hidden max-w-md mx-auto bg-white border border-emerald-100 p-8 rounded-2xl text-center space-y-4 shadow-xl shadow-emerald-900/5 relative z-20">
+                    <div class="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                        <i data-lucide="check" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-heading font-extrabold text-xl mb-1 text-slate-900">Đã gửi thành công!</h4>
+                        <p class="text-sm text-slate-500 font-medium">Cảm ơn bạn. Thông tin đã được lưu trữ an toàn.</p>
+                    </div>
+                    <button onclick="resetForm()" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline mt-2 block mx-auto py-2 transition-colors">Gửi thêm phản hồi khác</button>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-white border-t border-slate-100 p-5 flex justify-between items-center relative z-20">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">&copy; 2026 Toán Anh Bảo</span>
+                <button onclick="openAdmin()" class="text-[10px] font-bold text-slate-400 uppercase hover:text-brand-red flex items-center gap-1.5 transition-colors">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i> Admin
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 3. ADMIN MODAL -->
+    <div id="adminModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white w-full max-w-5xl h-[90vh] sm:max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden transform scale-95 transition-transform duration-300" id="adminModalContent">
+            
+            <!-- Admin Header -->
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-brand-red/20 p-1.5 rounded-lg">
+                        <i data-lucide="database" class="w-4 h-4 text-brand-red"></i>
+                    </div>
+                    <h3 class="font-sans font-bold text-sm tracking-widest uppercase text-slate-100">Hệ Thống Quản Trị</h3>
+                </div>
+                <button onclick="closeAdmin()" class="text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-full p-2">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Login Section -->
+            <div id="adminLoginView" class="p-8 sm:p-12 text-center flex-1 flex flex-col items-center justify-center bg-slate-50 math-grid-bg relative">
+                <div class="absolute inset-0 bg-white/80 z-0"></div>
+                <div class="relative z-10 w-full max-w-xs flex flex-col items-center">
+                    <div class="w-20 h-20 bg-white text-slate-400 rounded-2xl flex items-center justify-center mb-6 border border-slate-200 shadow-sm rotate-3">
+                        <i data-lucide="lock-keyhole" class="w-10 h-10"></i>
+                    </div>
+                    <h2 class="font-heading font-extrabold text-2xl text-slate-900 mb-2">Bảo Mật Hệ Thống</h2>
+                    <p class="text-sm text-slate-500 mb-8 font-medium">Vui lòng xác thực quyền truy cập</p>
+                    
+                    <div class="w-full space-y-4">
+                        <!-- NO HINTS. Pure secure input -->
+                        <input type="password" id="adminPwd" placeholder="Mật khẩu" class="w-full px-4 py-3.5 rounded-xl border border-slate-300 text-center font-bold focus:outline-none focus:border-brand-red focus:ring-2 focus:ring-brand-red/20 transition-all shadow-sm" />
+                        <p id="loginErrorMsg" class="text-xs text-brand-red font-bold hidden">Mật khẩu không chính xác.</p>
+                        <button onclick="verifyAdmin()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold py-3.5 rounded-xl shadow-lg transition-transform active:scale-[0.98] flex items-center justify-center gap-2">
+                            Truy Cập Quản Trị
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="adminDashboardView" class="hidden flex-1 flex flex-col overflow-hidden bg-slate-50/50 relative">
+                
+                <!-- Dashboard Toolbar -->
+                <div class="px-6 py-4 border-b border-slate-200 bg-white flex flex-wrap gap-4 items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <h4 class="font-heading font-bold text-slate-900 text-lg">Danh Sách Tham Dự</h4>
+                        <span id="syncStatus" class="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400" id="syncDot"></span>
+                            Chờ đồng bộ
+                        </span>
+                    </div>
+                    <button onclick="forceRefreshAdminData()" id="refreshBtn" class="bg-white border border-slate-200 hover:border-brand-red hover:text-brand-red text-slate-600 text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-all shadow-sm">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshIcon"></i>
+                        <span>Làm Mới</span>
+                    </button>
+                </div>
+
+                <div class="p-6 overflow-y-auto space-y-6 flex-1">
+                    
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest mb-1">Tổng Số Tham Dự</p>
+                                <p class="text-3xl font-heading font-extrabold text-slate-900" id="statTotal">0</p>
+                            </div>
+                            <div class="bg-emerald-50 text-emerald-600 p-4 rounded-xl">
+                                <i data-lucide="users" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest mb-1">Khách Kèm Theo</p>
+                                <p class="text-3xl font-heading font-extrabold text-slate-900" id="statGuests">0</p>
+                            </div>
+                            <div class="bg-amber-50 text-amber-600 p-4 rounded-xl">
+                                <i data-lucide="user-plus" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest mb-1">Vắng Mặt</p>
+                                <p class="text-3xl font-heading font-extrabold text-slate-900" id="statAbsents">0</p>
+                            </div>
+                            <div class="bg-rose-50 text-rose-600 p-4 rounded-xl">
+                                <i data-lucide="user-minus" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Firestore Data Table -->
+                    <div class="bg-white border border-slate-200/60 rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-widest border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-4">Thời gian</th>
+                                        <th class="px-6 py-4">Họ và Tên</th>
+                                        <th class="px-6 py-4 text-center">Trạng Thái</th>
+                                        <th class="px-6 py-4 text-center">Khách Kèm</th>
+                                        <th class="px-6 py-4 w-full">Lời Nhắn</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="firestoreTableBody" class="divide-y divide-slate-100 text-slate-700">
+                                    <tr>
+                                        <td colspan="5" class="p-12 text-center text-slate-400 font-medium">
+                                            <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-3 text-slate-300"></i>
+                                            Đang tải dữ liệu từ máy chủ...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- FIREBASE INTEGRATION MODULE (Hybrid Async Logic) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment Configuration
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'toananhbao-app';
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        } catch (e) {
+            console.error("Missing Firebase Config");
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Core App State
+        window.firebaseUser = null;
+        window.firebaseDb = db;
+        const rsvpCollectionPath = ['artifacts', appId, 'public', 'data', 'rsvps'];
+
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    window.firebaseUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    window.firebaseUser = cred.user;
+                }
+                console.log("Firebase Authenticated");
+            } catch (err) {
+                console.error("Firebase Auth Error:", err);
+            }
+        }
+
+        // BACKGROUND SYNC SAVING (Optimistic UI Approach)
+        // Resolves immediately for the UI, but does the Firebase heavy lifting in background
+        window.backgroundSyncRSVP = async function(data) {
+            if (!window.firebaseUser) {
+                await initAuth(); // Ensure auth if not ready
+            }
+            try {
+                const colRef = collection(db, ...rsvpCollectionPath);
+                await addDoc(colRef, data);
+                console.log("RSVP background sync successful");
+            } catch (error) {
+                console.error("RSVP background sync failed:", error);
+                // Could save to localStorage here as extreme fallback
+            }
+        };
+
+        // ADMIN FETCH DATA
+        window.fetchAdminData = async function() {
+            if (!window.firebaseUser) {
+                await initAuth();
+            }
+            
+            const colRef = collection(db, ...rsvpCollectionPath);
+            try {
+                const snapshot = await getDocs(colRef); // Simple fetch all
+                const dataList = [];
+                snapshot.forEach((doc) => {
+                    dataList.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // JS Sort (Descending by timestamp) to avoid complex query requirements (RULE 2)
+                dataList.sort((a, b) => b.timestamp - a.timestamp);
+                
+                window.renderAdminData(dataList);
+                window.updateSyncStatus(true);
+            } catch (error) {
+                console.error("Failed to fetch admin data:", error);
+                window.updateSyncStatus(false);
+                window.showMessage("Không thể tải dữ liệu mới", "error");
+            }
+        };
+
+        // Initialize connection
+        initAuth();
+    </script>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Custom Toast Message System
+        window.showMessage = function(msg, type = 'info') {
+            const toast = document.getElementById('toastMessage');
+            toast.innerText = msg;
+            toast.className = `fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-lg z-[10000] transition-opacity duration-300 font-sans font-bold text-sm text-center min-w-[250px] ${
+                type === 'error' ? 'bg-brand-red text-white' : 
+                type === 'success' ? 'bg-emerald-600 text-white' : 
+                'bg-slate-900 text-white'
+            }`;
+            
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3500);
+        }
+
+        // --- INTERACTION LOGIC (Floating Math & Ripples) ---
+        const mathSymbols = ['\u03C0', '\u221A', '\u222B', '\u2211', '\u221E'];
+        document.addEventListener('click', (e) => {
+            const tag = e.target.tagName;
+            // Ignore interactive elements
+            if (['INPUT', 'TEXTAREA', 'BUTTON', 'A', 'SELECT', 'LABEL'].includes(tag) || e.target.closest('button') || e.target.closest('a')) return;
+
+            // Ripple
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.left = `${e.clientX}px`;
+            ripple.style.top = `${e.clientY}px`;
+            document.body.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 800);
+
+            // Floating Math Symbol
+            const particle = document.createElement('div');
+            particle.className = 'tap-particle';
+            particle.style.left = `${e.clientX}px`;
+            particle.style.top = `${e.clientY}px`;
+            particle.innerText = mathSymbols[Math.floor(Math.random() * mathSymbols.length)];
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1200);
+        });
+
+        // --- ENVELOPE LOGIC ---
+        function openEnvelope() {
+            const overlay = document.getElementById('envelopeOverlay');
+            const wrapper = document.getElementById('envelopeWrapper');
+            const mainContent = document.getElementById('mainContent');
+            
+            if (wrapper.classList.contains('envelope-open')) return;
+            
+            // 3D Flap animation
+            wrapper.classList.add('envelope-open');
+
+            // Confetti
+            setTimeout(() => {
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 150,
+                        spread: 100,
+                        origin: { y: 0.6 },
+                        colors: ['#D41433', '#D4AF37', '#ffffff']
+                    });
+                }
+            }, 300);
+
+            // Disappear sequence
+            setTimeout(() => {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    overlay.remove(); // Completely remove from DOM
+                    mainContent.classList.remove('hidden');
+                    void mainContent.offsetWidth; // trigger reflow
+                    mainContent.classList.remove('opacity-0', 'translate-y-10');
+                }, 700);
+            }, 1200);
+        }
+
+        // --- RSVP FORM LOGIC (Optimistic UI) ---
+        function submitRSVP(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>Đang xử lý...</span>`;
+            lucide.createIcons();
+
+            const data = {
+                timestamp: Date.now(),
+                dateStr: new Date().toLocaleString('vi-VN'),
+                name: document.getElementById('guestName').value.trim(),
+                attendance: document.querySelector('input[name="attendance"]:checked').value,
+                guestCount: parseInt(document.getElementById('guestCount').value, 10),
+                note: document.getElementById('guestNote').value.trim()
+            };
+
+            // 1. Immediately switch UI to success (Zero latency perceived by user)
+            setTimeout(() => {
+                document.getElementById('rsvpForm').classList.add('hidden');
+                document.getElementById('successMsg').classList.remove('hidden');
+                
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 60, spread: 60, origin: { y: 0.8 } });
+                }
+                
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
+            }, 300);
+
+            // 2. Perform background sync to Firebase
+            if(typeof window.backgroundSyncRSVP === 'function') {
+                window.backgroundSyncRSVP(data);
+            } else {
+                console.warn("Firebase not ready for sync");
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('rsvpForm').reset();
+            document.getElementById('rsvpForm').classList.remove('hidden');
+            document.getElementById('successMsg').classList.add('hidden');
+        }
+
+        // --- ADMIN PANEL LOGIC ---
+        const modal = document.getElementById('adminModal');
+        const modalContent = document.getElementById('adminModalContent');
+        let refreshIntervalId = null;
+
+        function openAdmin() {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+            }, 10);
+            document.getElementById('adminPwd').value = '';
+            document.getElementById('loginErrorMsg').classList.add('hidden');
+        }
+
+        function closeAdmin() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('adminLoginView').classList.remove('hidden');
+                document.getElementById('adminDashboardView').classList.add('hidden');
+                stopAutoRefresh();
+            }, 300);
+        }
+
+        function verifyAdmin() {
+            const pwd = document.getElementById('adminPwd').value;
+            const errorMsg = document.getElementById('loginErrorMsg');
+            
+            // Credentials
+            if (pwd === 'toananhbao' || pwd === '123456') {
+                errorMsg.classList.add('hidden');
+                document.getElementById('adminLoginView').classList.add('hidden');
+                document.getElementById('adminDashboardView').classList.remove('hidden');
+                
+                // Fetch initially and start auto-refresh
+                forceRefreshAdminData();
+                startAutoRefresh();
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        // --- DATA SYNC SYSTEM ---
+        function forceRefreshAdminData() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin');
+            window.updateSyncStatus(false, "Đang tải...");
+            
+            if(typeof window.fetchAdminData === 'function') {
+                window.fetchAdminData().finally(() => {
+                    setTimeout(() => icon.classList.remove('animate-spin'), 500);
+                });
+            }
+        }
+
+        function startAutoRefresh() {
+            if (refreshIntervalId) clearInterval(refreshIntervalId);
+            refreshIntervalId = setInterval(() => {
+                forceRefreshAdminData();
+            }, 60000); // 60s
+        }
+
+        function stopAutoRefresh() {
+            if (refreshIntervalId) clearInterval(refreshIntervalId);
+        }
+
+        window.updateSyncStatus = function(success, customText = null) {
+            const statusEl = document.getElementById('syncStatus');
+            const dot = document.getElementById('syncDot');
+            
+            if (customText) {
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></span> ${customText}`;
+            } else if (success) {
+                const time = new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Đã cập nhật ${time}`;
+            } else {
+                statusEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-brand-red"></span> Lỗi kết nối`;
+            }
+        }
+
+        // Render Data to Table
+        window.renderAdminData = function(dataList) {
+            const tbody = document.getElementById('firestoreTableBody');
+            
+            let totalMain = 0;
+            let totalGuests = 0;
+            let totalAbsents = 0;
+
+            if (dataList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-12 text-center text-slate-400 font-medium bg-white">Chưa có dữ liệu phản hồi.</td></tr>`;
+            } else {
+                tbody.innerHTML = dataList.map(item => {
+                    const isAttending = item.attendance === 'Tham gia';
+                    if (isAttending) {
+                        totalMain++;
+                        totalGuests += (item.guestCount || 0);
+                    } else {
+                        totalAbsents++;
+                    }
+
+                    return `
+                    <tr class="hover:bg-slate-50/80 transition-colors bg-white">
+                        <td class="px-6 py-4 text-slate-500 text-xs">${escapeHtml(item.dateStr || 'N/A')}</td>
+                        <td class="px-6 py-4 font-bold text-slate-900">${escapeHtml(item.name)}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isAttending ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">
+                                ${item.attendance}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center font-extrabold ${item.guestCount > 0 ? 'text-brand-red' : 'text-slate-300'}">+${item.guestCount || 0}</td>
+                        <td class="px-6 py-4 text-slate-600 text-xs truncate max-w-[200px]" title="${escapeHtml(item.note)}">${escapeHtml(item.note)}</td>
+                    </tr>
+                `}).join('');
+            }
+
+            // Update Stats UI
+            document.getElementById('statTotal').innerText = totalMain + totalGuests;
+            document.getElementById('statGuests').innerText = '+' + totalGuests;
+            document.getElementById('statAbsents').innerText = totalAbsents;
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"'`=\/]/g, function (s) {
+                return {
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;'
+                }[s];
+            });
+        }
+    </script>
+</body>
+</html>
