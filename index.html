@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f3ec">
+  <title>Thư mời Lễ gặp mặt</title>
+  <style>
+    :root { --paper:#fbf8f2; --ink:#25231f; --muted:#716b62; --accent:#8a6a42; --line:#e6ded1; }
+    * { box-sizing:border-box }
+    body { margin:0; padding:24px 14px; background:#eee8de; color:var(--ink); font:16px/1.6 Georgia,"Times New Roman",serif; }
+    main { max-width:620px; margin:auto; }
+    .card { background:var(--paper); border:1px solid var(--line); padding:clamp(24px,6vw,52px); box-shadow:0 12px 40px #32230e12; }
+    .eyebrow { text-transform:uppercase; letter-spacing:.18em; font:11px/1.6 system-ui,sans-serif; color:var(--accent); text-align:center; }
+    h1 { text-align:center; font-size:clamp(32px,7vw,48px); font-weight:400; line-height:1.15; margin:16px 0; }
+    .intro { text-align:center; color:var(--muted); }
+    .details { margin:28px 0; padding:20px 0; border-block:1px solid var(--line); text-align:center; }
+    .details p { margin:7px 0; }
+    label { display:block; margin:14px 0 6px; font:14px system-ui,sans-serif; }
+    input,select,textarea,button { width:100%; border-radius:8px; font:16px system-ui,sans-serif; padding:12px; }
+    input,select,textarea { border:1px solid #d8d0c4; background:white; color:var(--ink); }
+    button { margin-top:18px; border:0; background:var(--ink); color:white; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    #status { min-height:24px; margin-top:12px; text-align:center; font:14px system-ui,sans-serif; }
+    footer { text-align:center; color:var(--muted); font:12px system-ui,sans-serif; margin-top:18px; }
+  </style>
+</head>
+<body>
+<main>
+  <article class="card">
+    <p class="eyebrow" id="organizer">Trân trọng kính mời</p>
+    <h1 id="title">Thư mời Lễ gặp mặt</h1>
+    <p class="intro" id="description">Sự hiện diện của bạn là niềm vui của chúng tôi.</p>
+    <section class="details">
+      <p><strong>Thời gian</strong></p><p id="event-time">Tối Chủ nhật</p>
+      <p style="margin-top:16px"><strong>Địa điểm</strong></p><p id="event-location">Sẽ được cập nhật</p>
+    </section>
+    <h2 style="font-weight:400;text-align:center">Bạn sẽ tham dự chứ?</h2>
+    <form id="rsvp-form">
+      <label for="guest-name">Họ và tên *</label>
+      <input id="guest-name" name="guest_name" maxlength="100" required autocomplete="name">
+      <label for="attendance">Xác nhận tham dự *</label>
+      <select id="attendance" name="attendance" required>
+        <option value="yes">Có, mình sẽ tham dự</option>
+        <option value="no">Rất tiếc, mình không thể tham dự</option>
+      </select>
+      <label for="guest-count">Số người tham dự (tính cả bạn)</label>
+      <select id="guest-count" name="guest_count">
+        <option value="1">1 người</option><option value="2">2 người</option>
+        <option value="3">3 người</option><option value="4">4 người</option>
+        <option value="5">5 người</option>
+      </select>
+      <label for="message">Lời nhắn (không bắt buộc)</label>
+      <textarea id="message" name="message" rows="3" maxlength="500" placeholder="Gửi lời nhắn..."></textarea>
+      <button id="submit-button" type="submit">Gửi xác nhận</button>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </article>
+  <footer>Vui lòng gửi xác nhận một lần. Cảm ơn bạn!</footer>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(() => {
+  const { createClient } = supabase;
+  const client = createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+
+  async function loadInvitation() {
+    const { data, error } = await client.from('site_settings')
+      .select('organizer,title,description,event_time,event_location')
+      .eq('id', 1).maybeSingle();
+    if (error) { console.error(error); status.textContent = 'Chưa tải được nội dung thiệp. Vui lòng thử tải lại trang.'; return; }
+    if (!data) return;
+    $('organizer').textContent = data.organizer || 'Trân trọng kính mời';
+    $('title').textContent = data.title || 'Thư mời';
+    $('description').textContent = data.description || '';
+    $('event-time').textContent = data.event_time || 'Sẽ được cập nhật';
+    $('event-location').textContent = data.event_location || 'Sẽ được cập nhật';
+    document.title = data.title || 'Thư mời';
+  }
+
+  $('rsvp-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = $('submit-button');
+    button.disabled = true;
+    status.textContent = 'Đang gửi xác nhận...';
+    const payload = {
+      guest_name: $('guest-name').value.trim(),
+      attendance: $('attendance').value,
+      guest_count: Number($('guest-count').value),
+      message: $('message').value.trim() || null
+    };
+    if (!payload.guest_name) { status.textContent = 'Vui lòng nhập họ tên.'; button.disabled = false; return; }
+    const { error } = await client.from('rsvps').insert(payload);
+    if (error) {
+      console.error(error);
+      status.textContent = 'Chưa gửi được. Vui lòng thử lại sau.';
+    } else {
+      status.textContent = 'Đã nhận xác nhận của bạn. Cảm ơn bạn!';
+      $('rsvp-form').reset();
+    }
+    button.disabled = false;
+  });
+
+  loadInvitation();
+})();
+</script>
+</body>
+</html>

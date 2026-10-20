@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — Quản lý thiệp mời</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#f4f5f7;color:#20232a;font:15px/1.5 system-ui,sans-serif}
+    main{max-width:1050px;margin:28px auto;padding:0 14px}.panel{background:white;border:1px solid #e1e4e8;border-radius:14px;padding:20px;margin:16px 0}
+    h1,h2{margin-top:0} h1{font-size:26px} label{display:block;margin:12px 0 5px}
+    input,textarea,button{font:inherit;padding:10px 12px;border-radius:8px;width:100%}
+    input,textarea{border:1px solid #cbd0d8} button{border:0;background:#20232a;color:white;cursor:pointer;margin-top:12px}
+    button.secondary{background:#e9ecf1;color:#20232a}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .stats{display:flex;gap:12px;flex-wrap:wrap}.stat{background:#f6f7f9;padding:12px 16px;border-radius:10px}
+    .table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;border-bottom:1px solid #e7e9ed;padding:10px 8px;vertical-align:top}
+    #app{display:none}.muted{color:#646b76;font-size:13px}#status{min-height:22px;color:#8a4b12}
+    @media(max-width:620px){.row{grid-template-columns:1fr}main{margin:14px auto}.panel{padding:15px}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Quản trị thiệp mời</h1>
+  <p class="muted">Chỉ dành cho người quản trị. Không chia sẻ tài khoản này cho khách mời.</p>
+  <section class="panel" id="login-panel">
+    <h2>Đăng nhập Admin</h2>
+    <form id="login-form">
+      <label for="email">Email quản trị</label><input id="email" type="email" autocomplete="username" required>
+      <label for="password">Mật khẩu</label><input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit">Đăng nhập</button>
+    </form>
+  </section>
+  <div id="status" role="status" aria-live="polite"></div>
+  <div id="app">
+    <section class="panel">
+      <div style="display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap">
+        <h2>Nội dung thiệp</h2><button class="secondary" id="logout" style="width:auto;margin:0">Đăng xuất</button>
+      </div>
+      <form id="settings-form">
+        <div class="row">
+          <div><label for="organizer">Người tổ chức</label><input id="organizer" maxlength="150" required></div>
+          <div><label for="title">Tiêu đề</label><input id="title" maxlength="200" required></div>
+        </div>
+        <label for="description">Lời giới thiệu</label><textarea id="description" rows="2" maxlength="1000"></textarea>
+        <div class="row">
+          <div><label for="event-time">Thời gian</label><input id="event-time" maxlength="200"></div>
+          <div><label for="event-location">Địa điểm</label><input id="event-location" maxlength="300"></div>
+        </div>
+        <button type="submit">Lưu và cập nhật thiệp</button>
+      </form>
+    </section>
+    <section class="panel">
+      <h2>Phản hồi khách mời</h2>
+      <div class="stats">
+        <div class="stat">Tổng phản hồi: <strong id="total">0</strong></div>
+        <div class="stat">Đồng ý: <strong id="yes">0</strong></div>
+        <div class="stat">Từ chối: <strong id="no">0</strong></div>
+      </div>
+      <button id="refresh" class="secondary">Tải lại danh sách</button>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Thời gian gửi</th><th>Họ tên</th><th>Trạng thái</th><th>Số người</th><th>Lời nhắn</th></tr></thead>
+        <tbody id="rsvp-rows"><tr><td colspan="5">Chưa tải dữ liệu.</td></tr></tbody>
+      </table></div>
+      <p class="muted">Danh sách được cập nhật khi tải lại trang hoặc nhấn “Tải lại danh sách”.</p>
+    </section>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(() => {
+  const { createClient } = supabase;
+  const client = createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+  let sessionUser = null;
+
+  function showApp(user) {
+    sessionUser = user || null;
+    $('login-panel').style.display = user ? 'none' : 'block';
+    $('app').style.display = user ? 'block' : 'none';
+    if (user) refreshAll();
+  }
+
+  async function checkSession() {
+    const { data } = await client.auth.getSession();
+    if (data.session) {
+      // RLS tại database vẫn là lớp bảo vệ chính; không dựa riêng vào việc ẩn giao diện.
+      showApp(data.session.user);
+    }
+  }
+
+  $('login-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.textContent = 'Đang đăng nhập...';
+    const { data, error } = await client.auth.signInWithPassword({
+      email: $('email').value.trim(), password: $('password').value
+    });
+    if (error) { status.textContent = 'Đăng nhập thất bại. Hãy kiểm tra thông tin tài khoản.'; return; }
+    status.textContent = '';
+    showApp(data.user);
+  });
+
+  $('logout').addEventListener('click', async () => {
+    await client.auth.signOut();
+    showApp(null);
+    status.textContent = 'Đã đăng xuất.';
+  });
+
+  async function loadSettings() {
+    const { data, error } = await client.from('site_settings')
+      .select('organizer,title,description,event_time,event_location').eq('id', 1).single();
+    if (error) { status.textContent = 'Không tải được nội dung thiệp. Kiểm tra quyền database.'; return; }
+    $('organizer').value = data.organizer || '';
+    $('title').value = data.title || '';
+    $('description').value = data.description || '';
+    $('event-time').value = data.event_time || '';
+    $('event-location').value = data.event_location || '';
+  }
+
+  $('settings-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    status.textContent = 'Đang lưu...';
+    const updates = {
+      organizer: $('organizer').value.trim(),
+      title: $('title').value.trim(),
+      description: $('description').value.trim(),
+      event_time: $('event-time').value.trim(),
+      event_location: $('event-location').value.trim(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await client.from('site_settings').update(updates).eq('id', 1);
+    status.textContent = error ? 'Lưu thất bại. Hãy kiểm tra quyền Admin và thử lại.' : 'Đã lưu. Mở lại trang thiệp hoặc tải lại để thấy nội dung mới.';
+  });
+
+  async function loadRsvps() {
+    const { data, error } = await client.from('rsvps')
+      .select('id,guest_name,attendance,guest_count,message,created_at')
+      .order('created_at', { ascending: false }).limit(500);
+    if (error) { status.textContent = 'Không tải được RSVP. Kiểm tra quyền Admin trong database.'; return; }
+    $('total').textContent = data.length;
+    $('yes').textContent = data.filter(x => x.attendance === 'yes').length;
+    $('no').textContent = data.filter(x => x.attendance === 'no').length;
+    const tbody = $('rsvp-rows');
+    tbody.replaceChildren();
+    if (!data.length) {
+      const tr = document.createElement('tr'), td = document.createElement('td');
+      td.colSpan = 5; td.textContent = 'Chưa có phản hồi nào.'; tr.append(td); tbody.append(tr); return;
+    }
+    for (const item of data) {
+      const tr = document.createElement('tr');
+      const values = [
+        item.created_at ? new Date(item.created_at).toLocaleString('vi-VN') : '',
+        item.guest_name,
+        item.attendance === 'yes' ? 'Tham dự' : 'Không tham dự',
+        String(item.guest_count ?? 1),
+        item.message || ''
+      ];
+      for (const value of values) {
+        const td = document.createElement('td');
+        td.textContent = value; // Dùng textContent để tránh chèn HTML từ lời nhắn.
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+  }
+
+  async function refreshAll() { await loadSettings(); await loadRsvps(); }
+  $('refresh').addEventListener('click', loadRsvps);
+  checkSession();
+})();
+</script>
+</body>
+</html>
